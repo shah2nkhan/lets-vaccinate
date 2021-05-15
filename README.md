@@ -1,6 +1,6 @@
 # lets-vaccinate - Scratchy overnight tool for getting the info - pattern on vaccine availability
 
-Tool just prints and write to file in every half minute on vaccine availabiliy on a state.
+Tool just prints and write to file in every half minute on vaccine availabiliy (Dose 1) on a state.
 Tool is configured with delhi State all Districts to find 18years covi-shield vaccine as of now.
 Its just print availability/ies on date + 1
 

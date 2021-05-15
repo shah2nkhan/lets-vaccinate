@@ -8,6 +8,7 @@ lerna-debug.log*
 
 node_modules/
 data/
+data
 
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -107,3 +108,4 @@ dist
 # TernJS port file
 .tern-port
 
+data/vaccineTracker.json

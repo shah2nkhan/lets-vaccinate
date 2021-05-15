@@ -104,7 +104,7 @@ async function getWeeklyCalByIdAndDate(id, date) {
                     // "available_capacity": 0,
                     // "min_age_limit": 45,
                     const validSessions = filter(p.sessions, ses => {
-                        return ses.available_capacity > 0 && ses.min_age_limit === 18 && ses.vaccine === 'COVISHIELD'
+                        return ses.available_capacity_dose1 > 1 && ses.min_age_limit === 18 && ses.vaccine === 'COVISHIELD'
                     });
 
                     if (validSessions !== undefined && validSessions.length > 0) {
@@ -112,14 +112,11 @@ async function getWeeklyCalByIdAndDate(id, date) {
                         validHospitalDetails.push({
                             name, address, statusTime: new Date().toLocaleString(), sessions: validSessions.map(s => {
                                 const { date,
-                                    available_capacity,
-                                    min_age_limit,
-                                    vaccine } = s;
+                                    available_capacity_dose1: dose1_Capacity,
+                                } = s;
                                 return {
                                     date,
-                                    available_capacity,
-                                    min_age_limit,
-                                    vaccine
+                                    dose1_Capacity,
                                 };
 
                             })
