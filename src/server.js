@@ -1,167 +1,146 @@
 'use strict'
-const sqlite3 = require('sqlite3').verbose();
-const axios = require('axios');
-const { head, filter, flatten } = require('lodash');
-var fs = require('fs')
-
-// let db = new sqlite3.Database('./data/vaccineTracker.db', sqlite3.OPEN_READWRITE, (err) => {
-//     if (err) {
-//       console.error(err.message);
-//     }
-//     console.log('Connected to the database.');
-//   });
-
-// fetch('https://cdn-api.co-vin.in/api/v2/admin/location/states' ,
-// { 
-//     method: 'GET',
-//     headers: { 'Accept': 'application/json', 'User-Agent': 'android' },
-
-// } ) // rejects
-//   .then(response => response.json())
-//   .then (data => console.log(data))
-//   .catch(err => console.log(err)) 
-
-var state_id = 9;
-var districtList = [];
-var dateToQuery = undefined;
-
-
-function writeDataIntoFile(ObjArr) {
-    fs.appendFile('./data/vaccineTracker.json', JSON.stringify(ObjArr), { flag: "a+" }, function (err) {
-        if (err) { console.log('fail to Save!', err); }
-    });
-}
-
-async function getDistricts(id) {
-    try {
-        const respose = await axios.get(`https://cdn-api.co-vin.in/api/v2/admin/location/districts/${id}`,
-            {
-                headers: {
-                    accept: "application/json",
-                    'User-Agent': 'android'
-                }
-            })
-
-        return respose.data.districts;
-    } catch (err) {
-        console.error('Error while getting Districts', err)
-    }
-}
-
-async function initStates() {
-    if (districtList != undefined && districtList.length > 0) { return; }
-    try {
-        const respose = await axios.get('https://cdn-api.co-vin.in/api/v2/admin/location/states',
-            {
-                headers: {
-                    accept: "application/json",
-                    'User-Agent': 'android'
-                }
-            })
-        state_id = head(filter(respose.data.states, p => { p.state_name === "Delhi" }))?.state_id || 9;
-        districtList = await getDistricts(state_id);
-    }
-    catch (err) {
-        console.error('Erro while getting state', err)
-    }
-}
-
-function setDate() {
-    if (dateToQuery !== undefined) {
-        return;
-    }
-    var today = new Date();
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    var dd = tomorrow.getDate();
-
-    var mm = tomorrow.getMonth() + 1;
-    var yyyy = tomorrow.getFullYear();
-    if (dd < 10) {
-        dd = '0' + dd;
-    }
-
-    if (mm < 10) {
-        mm = '0' + mm;
-    }
-    dateToQuery = dd + '-' + mm + '-' + yyyy;
-}
-
-async function getWeeklyCalByIdAndDate(id, date) {
-    try {
-        const respose = await axios.get(`https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=${id}&date=${date}`,
-            {
-                headers: {
-                    accept: "application/json",
-                    'User-Agent': 'android'
-                }
-            })
-
-        const validHospitalDetails = []
-        respose.data.centers.forEach
-            (
-                p => {
-                    // "available_capacity": 0,
-                    // "min_age_limit": 45,
-                    const validSessions = filter(p.sessions, ses => {
-                        return ses.available_capacity_dose1 > 1 && ses.min_age_limit === 18 && ses.vaccine === 'COVISHIELD'
-                    });
-
-                    if (validSessions !== undefined && validSessions.length > 0) {
-                        const { name, address } = p
-                        validHospitalDetails.push({
-                            name, address, statusTime: new Date().toLocaleString(), sessions: validSessions.map(s => {
-                                const { date,
-                                    available_capacity_dose1: dose1_Capacity,
-                                } = s;
-                                return {
-                                    date,
-                                    dose1_Capacity,
-                                };
-
-                            })
-                        });
-                    }
-
-                }
-            )
-
-        return validHospitalDetails;
-    }
-    catch (err) {
-        console.error('Error while getting state', err)
-    }
-}
-
-async function getWeeklyCalendar() {
-    setDate();
-    await initStates();
-    const allValidHospitals = await Promise.all(
-        districtList.map(p => {
-            return getWeeklyCalByIdAndDate(p.district_id, dateToQuery);
-        }));
-    const cleansedArray = flatten(allValidHospitals.filter(p => p != undefined || P != null));
-    if (cleansedArray !== undefined && cleansedArray.length > 0) {
-        console.log(JSON.stringify({ hospitals: cleansedArray }));
-        writeDataIntoFile(cleansedArray);
-    }
-}
-
-const interval = setInterval(
-    getWeeklyCalendar
-    , 0.5 * 60 * 1000);
+const { flatten } = require("lodash");
+const { deleteMessages, writeMessagesToTelegram, cleanUpOldChat } = require("./telegram-api");
+const { PuneDistrictId, DelhiStateId, NcrAdditionalDistricts } = require("./constants");
+const { getTomorrowDateString } = require("./helpers");
+const { getDistricts, getWeeklyCalByIdAndDate } = require("./cowin-api");
 
 const readline = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-readline.question('Press any key to close?', name => {
-    clearInterval(interval);
+const TelegramData = require('../data/telegram.json')
+const { DelhiChatId, PuneChatId } = TelegramData;
+
+let skippedDeletionDelhi = 0;
+let skippedDeletionPune = 0;
+
+var districtList = [];
+var dateToQuery = undefined;
+var oldDelhiMessage = [];
+var oldPuneMessage = [];
+
+const DistrictNamesMap = new Map();
+DistrictNamesMap.set(PuneDistrictId, 'Pune');
+
+NcrAdditionalDistricts.forEach(p => {
+    if (!DistrictNamesMap.has(p.district_id)) {
+        DistrictNamesMap.set(p.district_id, p.district_name);
+    }
+});
+
+(function setDate() {
+    if (dateToQuery !== undefined) {
+        return;
+    }
+    dateToQuery = getTomorrowDateString();
+})();
+
+async function initDistrictsOfDelhi() {
+
+    if (districtList != undefined && districtList.length > 0) { return; }
+    try {
+        const responseList = await getDistricts(DelhiStateId);
+        responseList.forEach(p => {
+            if (!DistrictNamesMap.has(p.district_id)) {
+                DistrictNamesMap.set(p.district_id, p.district_name);
+            }
+
+        });
+        districtList = responseList.concat(NcrAdditionalDistricts);
+    }
+    catch (err) {
+        console.error(`Error while getting stateList Status: ${err.response.status}`, err.response.data);
+    }
+}
+
+
+async function getWeeklyCalendarDelhiNcr() {
+    // cleanUpOldChat(DelhiChatId, 1340, 1500).then(() => { console.log('clean up Done'); }).catch(() => { console.log('clean up failed'); });
+    try {
+        await initDistrictsOfDelhi();
+        console.log('calling for Delhi NCR');
+        const allValidHospitals = await Promise.all(
+            districtList.map(p => {
+                return getWeeklyCalByIdAndDate(p.district_id, dateToQuery, 18);
+            }));
+        const cleansedArray = flatten(allValidHospitals.filter(p => p !== undefined || p !== null));
+        if (cleansedArray !== undefined && cleansedArray.length > 0) {
+            console.log(JSON.stringify({ hospitals: cleansedArray }));
+            const oldIds = await writeMessagesToTelegram(DelhiChatId, cleansedArray)
+            console.log("Write to telegram Delhi", oldIds);
+            oldDelhiMessage = oldDelhiMessage.concat(oldIds);
+        }
+        else {
+            if (oldDelhiMessage !== undefined && oldDelhiMessage.length > 0 && skippedDeletionDelhi > 5) {
+                const clonedArray = [...oldDelhiMessage];
+                oldDelhiMessage = [];
+                // await deleteMessages(DelhiChatId, clonedArray);
+                skippedDeletionDelhi = 0;
+            }
+            else {
+                skippedDeletionDelhi += 1;
+            }
+        }
+    }
+    catch (ex) {
+        console.log('failed to get getWeeklyCalendarDelhiNcr');
+    }
+}
+async function getWeeklyCalendarPune() {
+    try {
+        console.log('calling for Pune');
+        const allValidHospitals = await getWeeklyCalByIdAndDate(PuneDistrictId, dateToQuery);
+        if (allValidHospitals !== undefined && allValidHospitals.length > 0) {
+            console.log(JSON.stringify({ pune_hospitals: allValidHospitals }));
+            const ids = await writeMessagesToTelegram(PuneChatId, allValidHospitals)
+            console.log("Write to telegram Pune", ids);
+            oldPuneMessage = oldPuneMessage.concat(ids);
+            skippedDeletionPune = 0;
+        } else {
+            if (oldPuneMessage !== undefined && oldPuneMessage.length > 0 && skippedDeletionPune > 5) {
+                const clonedArray = [...oldPuneMessage];
+                oldPuneMessage = [];
+                // await deleteMessages(PuneChatId, clonedArray);
+                skippedDeletionPune = 0;
+            }
+            else {
+                skippedDeletionPune += 1;
+            }
+        }
+    }
+    catch (ex) {
+        console.log('failed to get getWeeklyCalendarPune');
+    }
+}
+
+async function startCowinScrapping() {
+    const p1 = getWeeklyCalendarPune();
+    const p2 = getWeeklyCalendarDelhiNcr();
+    return await Promise.all([p1, p2]);
+}
+
+var closeTimeout = false;
+let timerId = setTimeout(function schedule() {
+    startCowinScrapping().
+    catch("Error while running start").
+    finally(
+        () => {
+            if (!closeTimeout) {
+                timerId = setTimeout(schedule, 1 * 60 * 1000);
+            }
+        }
+    );
+}, 0)
+
+
+readline.question('Press any key to close?', () => {
+    closeTimeout = true;
+    clearTimeout(timerId);
     console.log(`Closing app!!`);
     readline.close();
 });
-
 
 
 
