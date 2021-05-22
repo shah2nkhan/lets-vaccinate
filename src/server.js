@@ -55,11 +55,10 @@ async function initDistrictsOfDelhi() {
 
 
 async function getWeeklyCalendarDelhiNcr() {
-
     //return Promise.resolve();
     // cleanUpOldChat(DelhiChatId, 1340, 1500).then(() => { console.log('clean up Done'); }).catch(() => { console.log('clean up failed'); });
     try {
-        //await initDistrictsOfDelhi();
+        await initDistrictsOfDelhi();
         console.log('calling for Delhi NCR');
         const allValidHospitals = await Promise.all(
             DelhiNcrDistrictList.map(p => {
