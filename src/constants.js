@@ -26,6 +26,7 @@ const NcrAdditionalDistricts = [
         district_name: "Ghazipur"
     }
 ];
+const DistrictNamesMap = new Map();
 
 
 module.exports = {
@@ -33,5 +34,6 @@ module.exports = {
     VaccineAvailabilityThreshHold,
     PuneDistrictId,
     DelhiStateId,
-    NcrAdditionalDistricts
+    NcrAdditionalDistricts,
+    DistrictNamesMap
 };

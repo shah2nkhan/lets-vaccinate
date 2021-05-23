@@ -1,7 +1,7 @@
 "use-strict";
 const axios = require('axios');
 const { filter } = require("lodash");
-const { VaccineAvailabilityThreshHold } = require("./constants");
+const { VaccineAvailabilityThreshHold, DistrictNamesMap } = require("./constants");
 
 
 const getWeeklyCalByIdAndDate = async (id, date, ageFilter) => {

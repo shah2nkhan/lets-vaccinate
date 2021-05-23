@@ -22,14 +22,17 @@ const buildFormattedString = (hospitalDetails) => {
     return `${mainHeaderString}${NewlineChar}${sessionsString}`;
 }
 
-const getTomorrowDateString = () => {
+const getQueryDateString = () => {
     var today = new Date();
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    var dd = tomorrow.getDate();
+    const queryDate = new Date(today);
+    if(queryDate.getHours() > 14 )
+    {
+        queryDate.setDate(queryDate.getDate() + 1)
+    }   
 
-    var mm = tomorrow.getMonth() + 1;
-    var yyyy = tomorrow.getFullYear();
+    var dd = queryDate.getDate();
+    var mm = queryDate.getMonth() + 1;
+    var yyyy = queryDate.getFullYear();
     if (dd < 10) {
         dd = '0' + dd;
     }
@@ -42,7 +45,7 @@ const getTomorrowDateString = () => {
 
 module.exports = {
     buildFormattedString,
-    getTomorrowDateString
+    getQueryDateString
 }
 
 

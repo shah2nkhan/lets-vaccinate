@@ -1,8 +1,8 @@
 'use strict'
 const { flatten } = require("lodash");
 const { deleteMessages, writeMessagesToTelegram, cleanUpOldChat } = require("./telegram-api");
-const { PuneDistrictId, DelhiStateId, NcrAdditionalDistricts } = require("./constants");
-const { getTomorrowDateString } = require("./helpers");
+const { PuneDistrictId, DelhiStateId, NcrAdditionalDistricts, DistrictNamesMap } = require("./constants");
+const { getQueryDateString } = require("./helpers");
 const { getDistricts, getWeeklyCalByIdAndDate } = require("./cowin-api");
 
 const readline = require('readline').createInterface({
@@ -16,12 +16,13 @@ const { DelhiChatId, PuneChatId } = TelegramData;
 let skippedDeletionDelhi = 0;
 let skippedDeletionPune = 0;
 
-var districtList = [];
+var closingApp = false;
+
+var DelhiNcrDistrictList = [];
 var dateToQuery = undefined;
 var oldDelhiMessage = [];
 var oldPuneMessage = [];
 
-const DistrictNamesMap = new Map();
 DistrictNamesMap.set(PuneDistrictId, 'Pune');
 
 NcrAdditionalDistricts.forEach(p => {
@@ -31,15 +32,12 @@ NcrAdditionalDistricts.forEach(p => {
 });
 
 (function setDate() {
-    if (dateToQuery !== undefined) {
-        return;
-    }
-    dateToQuery = getTomorrowDateString();
+    dateToQuery = getQueryDateString();
 })();
 
 async function initDistrictsOfDelhi() {
 
-    if (districtList != undefined && districtList.length > 0) { return; }
+    if (DelhiNcrDistrictList != undefined && DelhiNcrDistrictList.length > 0) { return; }
     try {
         const responseList = await getDistricts(DelhiStateId);
         responseList.forEach(p => {
@@ -48,7 +46,7 @@ async function initDistrictsOfDelhi() {
             }
 
         });
-        districtList = responseList.concat(NcrAdditionalDistricts);
+        DelhiNcrDistrictList = responseList.concat(NcrAdditionalDistricts);
     }
     catch (err) {
         console.error(`Error while getting stateList Status: ${err.response.status}`, err.response.data);
@@ -57,12 +55,14 @@ async function initDistrictsOfDelhi() {
 
 
 async function getWeeklyCalendarDelhiNcr() {
+
+    //return Promise.resolve();
     // cleanUpOldChat(DelhiChatId, 1340, 1500).then(() => { console.log('clean up Done'); }).catch(() => { console.log('clean up failed'); });
     try {
-        await initDistrictsOfDelhi();
+        //await initDistrictsOfDelhi();
         console.log('calling for Delhi NCR');
         const allValidHospitals = await Promise.all(
-            districtList.map(p => {
+            DelhiNcrDistrictList.map(p => {
                 return getWeeklyCalByIdAndDate(p.district_id, dateToQuery, 18);
             }));
         const cleansedArray = flatten(allValidHospitals.filter(p => p !== undefined || p !== null));
@@ -115,29 +115,36 @@ async function getWeeklyCalendarPune() {
     }
 }
 
+let dateTimerId = setTimeout(function scheduleTimeChange() {
+    dateToQuery = getQueryDateString();
+    if (!closingApp) {
+        dateTimerId = setTimeout(scheduleTimeChange, 6 * 60 * 60 * 1000);
+    }
+}, 6 * 60 * 60 * 1000);
+
 async function startCowinScrapping() {
     const p1 = getWeeklyCalendarPune();
     const p2 = getWeeklyCalendarDelhiNcr();
-    return await Promise.all([p1, p2]);
+    return Promise.all([p1, p2]);
 }
 
-var closeTimeout = false;
-let timerId = setTimeout(function schedule() {
+let dataTimerId = setTimeout(function schedule() {
     startCowinScrapping().
-    catch("Error while running start").
-    finally(
-        () => {
-            if (!closeTimeout) {
-                timerId = setTimeout(schedule, 1 * 60 * 1000);
+        catch("Error while running start").
+        finally(
+            () => {
+                if (!closingApp) {
+                    dataTimerId = setTimeout(schedule, 1 * 60 * 1000);
+                }
             }
-        }
-    );
+        );
 }, 0)
 
 
 readline.question('Press any key to close?', () => {
-    closeTimeout = true;
-    clearTimeout(timerId);
+    closingApp = true;
+    clearTimeout(dataTimerId);
+    clearTimeout(dateTimerId);
     console.log(`Closing app!!`);
     readline.close();
 });
