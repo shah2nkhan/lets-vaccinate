@@ -20,14 +20,16 @@ Session 1: **<!-- Weekly avalilable session/s with Date & type of vaccine-->**
 ## How to book vaccine
 - Go to https://www.cowin.gov.in/
 - Login using Otp or arogya setu
-- Search by Pincode if notification address has pincode otherwise Search by district of a state as mentioned in Alert  
+- Search by Pincode if notification hospital address has one otherwise search by district of the state as mentioned in Alert.
 - Voila Have safe vaccine booking!!
-- Sometime cowin App doesnot show the same detail as we are pulling after 1 min in my experience that too much time for even loosing the center but cant help
+ 
+ **Sometimes cowin App doesnot show the same details as we are pulling data after every 1 min, in my experience that's too much of time delay but can't help as reducing time gap  may introduce 403. Other way is to reduce the scope (only handfull of districts) or introduce delay in calls.**
+ 
+**Do fork the code and put rate limiter on outwards cowin api calls**
 
 ## Things to note
-
-Due to possible race condition at Cowin service side when you see 1 (few) available slot main cowin web may not show you that, even if Cowin web shows you that it may not allow you to book. Thats in general issue with Cowin Api all together.
-Thats why we have putted minimum capped of 5 vaccines per center
+Due to possible race condition at Cowin service side when you see 1 (or too few) available slot/s main cowin web may not show the same, even if Cowin webpage shows you available slot even than it may not allow you to book. Thats in general issue with Cowin Api all together.
+To over come the flooding of message i have putted minimum cap of 5 vaccines per center.
 
 ## Tools required
 

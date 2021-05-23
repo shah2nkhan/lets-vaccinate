@@ -43,9 +43,14 @@ const getQueryDateString = () => {
     return dd + '-' + mm + '-' + yyyy;
 }
 
+const sleep = ms => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 module.exports = {
     buildFormattedString,
-    getQueryDateString
+    getQueryDateString,
+    sleep
 }
 
 

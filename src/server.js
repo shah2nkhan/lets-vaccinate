@@ -2,7 +2,7 @@
 const { flatten } = require("lodash");
 const { deleteMessages, writeMessagesToTelegram, cleanUpOldChat } = require("./telegram-api");
 const { PuneDistrictId, DelhiStateId, NcrAdditionalDistricts, DistrictNamesMap } = require("./constants");
-const { getQueryDateString } = require("./helpers");
+const { getQueryDateString, sleep } = require("./helpers");
 const { getDistricts, getWeeklyCalByIdAndDate } = require("./cowin-api");
 
 const readline = require('readline').createInterface({
@@ -13,15 +13,15 @@ const readline = require('readline').createInterface({
 const TelegramData = require('../data/telegram.json')
 const { DelhiChatId, PuneChatId } = TelegramData;
 
-let skippedDeletionDelhi = 0;
-let skippedDeletionPune = 0;
+let skippedDelhiTelegramCleanupCount = 0;
+let skippedPuneTelegramCleanupCount = 0;
 
 var closingApp = false;
 
 var DelhiNcrDistrictList = [];
 var dateToQuery = undefined;
-var oldDelhiMessage = [];
-var oldPuneMessage = [];
+var delhiTelegramMessageId = [];
+var puneTelegramMessageId = [];
 
 DistrictNamesMap.set(PuneDistrictId, 'Pune');
 
@@ -36,7 +36,6 @@ NcrAdditionalDistricts.forEach(p => {
 })();
 
 async function initDistrictsOfDelhi() {
-
     if (DelhiNcrDistrictList != undefined && DelhiNcrDistrictList.length > 0) { return; }
     try {
         const responseList = await getDistricts(DelhiStateId);
@@ -53,9 +52,6 @@ async function initDistrictsOfDelhi() {
     }
 }
 
-const sleep = ms => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 async function getWeeklyCalendarDelhiNcr() {
     //return Promise.resolve();
@@ -63,34 +59,33 @@ async function getWeeklyCalendarDelhiNcr() {
     try {
         await initDistrictsOfDelhi();
         console.log('calling for Delhi NCR');
-        var allValidHospitals = [];
-                
+        var hasVaccineSlots = false;
+
         for (const district of DelhiNcrDistrictList) {
-            const districtHopitalsWithVaccines = await sleep(2000).then(v => {
+            const districtHospitalsWithVaccines = await sleep(2000).then(v => {
                 getWeeklyCalByIdAndDate(district.district_id, dateToQuery, 18)
             });
 
-            if (districtHopitalsWithVaccines !== undefined && districtHopitalsWithVaccines !== null
-                && Array.isArray(districtHopitalsWithVaccines) && districtHopitalsWithVaccines.length > 0) {
-                allValidHospitals = allValidHospitals.concat(districtHopitalsWithVaccines);
+            if (districtHospitalsWithVaccines !== undefined && districtHospitalsWithVaccines !== null
+                && Array.isArray(districtHospitalsWithVaccines) && districtHospitalsWithVaccines.length > 0) {
+
+                hasVaccineSlots = hasVaccineSlots | true;
+                console.log(JSON.stringify({ 'Hospitals': districtHospitalsWithVaccines }));
+                const oldIds = await writeMessagesToTelegram(DelhiChatId, districtHospitalsWithVaccines)
+                console.log("Write to telegram Delhi", oldIds);
+                delhiTelegramMessageId = delhiTelegramMessageId.concat(oldIds);
             }
         }
 
-        if (allValidHospitals.length > 0) {
-            console.log(JSON.stringify({ hospitals: allValidHospitals }));
-            const oldIds = await writeMessagesToTelegram(DelhiChatId, allValidHospitals)
-            console.log("Write to telegram Delhi", oldIds);
-            oldDelhiMessage = oldDelhiMessage.concat(oldIds);
-        }
-        else {
-            if (oldDelhiMessage !== undefined && oldDelhiMessage.length > 0 && skippedDeletionDelhi > 5) {
-                const clonedArray = [...oldDelhiMessage];
-                oldDelhiMessage = [];
+        if (!hasVaccineSlots) {
+            if (skippedDelhiTelegramCleanupCount > 5) {
+                const clonedArray = [...delhiTelegramMessageId];
+                delhiTelegramMessageId = [];
                 // await deleteMessages(DelhiChatId, clonedArray);
-                skippedDeletionDelhi = 0;
+                skippedDelhiTelegramCleanupCount = 0;
             }
             else {
-                skippedDeletionDelhi += 1;
+                skippedDelhiTelegramCleanupCount += 1;
             }
         }
     }
@@ -106,17 +101,17 @@ async function getWeeklyCalendarPune() {
             console.log(JSON.stringify({ pune_hospitals: allValidHospitals }));
             const ids = await writeMessagesToTelegram(PuneChatId, allValidHospitals)
             console.log("Write to telegram Pune", ids);
-            oldPuneMessage = oldPuneMessage.concat(ids);
-            skippedDeletionPune = 0;
+            puneTelegramMessageId = puneTelegramMessageId.concat(ids);
+            skippedPuneTelegramCleanupCount = 0;
         } else {
-            if (oldPuneMessage !== undefined && oldPuneMessage.length > 0 && skippedDeletionPune > 5) {
-                const clonedArray = [...oldPuneMessage];
-                oldPuneMessage = [];
+            if (puneTelegramMessageId !== undefined && puneTelegramMessageId.length > 0 && skippedPuneTelegramCleanupCount > 5) {
+                const clonedArray = [...puneTelegramMessageId];
+                puneTelegramMessageId = [];
                 // await deleteMessages(PuneChatId, clonedArray);
-                skippedDeletionPune = 0;
+                skippedPuneTelegramCleanupCount = 0;
             }
             else {
-                skippedDeletionPune += 1;
+                skippedPuneTelegramCleanupCount += 1;
             }
         }
     }
@@ -148,7 +143,7 @@ let dataTimerId = setTimeout(function schedule() {
                 }
             }
         );
-}, 0)
+}, 0);
 
 
 readline.question('Press any key to close?', () => {
