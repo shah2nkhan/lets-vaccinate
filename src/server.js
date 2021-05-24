@@ -53,6 +53,9 @@ async function initDistrictsOfDelhi() {
     }
 }
 
+const sleep = ms => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getWeeklyCalendarDelhiNcr() {
     //return Promise.resolve();
@@ -60,14 +63,22 @@ async function getWeeklyCalendarDelhiNcr() {
     try {
         await initDistrictsOfDelhi();
         console.log('calling for Delhi NCR');
-        const allValidHospitals = await Promise.all(
-            DelhiNcrDistrictList.map(p => {
-                return getWeeklyCalByIdAndDate(p.district_id, dateToQuery, 18);
-            }));
-        const cleansedArray = flatten(allValidHospitals.filter(p => p !== undefined || p !== null));
-        if (cleansedArray !== undefined && cleansedArray.length > 0) {
-            console.log(JSON.stringify({ hospitals: cleansedArray }));
-            const oldIds = await writeMessagesToTelegram(DelhiChatId, cleansedArray)
+        var allValidHospitals = [];
+                
+        for (const district of DelhiNcrDistrictList) {
+            const districtHopitalsWithVaccines = await sleep(2000).then(v => {
+                getWeeklyCalByIdAndDate(district.district_id, dateToQuery, 18)
+            });
+
+            if (districtHopitalsWithVaccines !== undefined && districtHopitalsWithVaccines !== null
+                && Array.isArray(districtHopitalsWithVaccines) && districtHopitalsWithVaccines.length > 0) {
+                allValidHospitals = allValidHospitals.concat(districtHopitalsWithVaccines);
+            }
+        }
+
+        if (allValidHospitals.length > 0) {
+            console.log(JSON.stringify({ hospitals: allValidHospitals }));
+            const oldIds = await writeMessagesToTelegram(DelhiChatId, allValidHospitals)
             console.log("Write to telegram Delhi", oldIds);
             oldDelhiMessage = oldDelhiMessage.concat(oldIds);
         }

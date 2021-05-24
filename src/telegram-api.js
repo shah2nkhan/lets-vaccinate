@@ -7,16 +7,15 @@ const { API_TOKEN } = TelegramData;
 const deleteMessages = async (chatId, messages) => {
     if (messages !== undefined &&
         Array.isArray(messages) && messages.length > 0) {
-        const data = Array.from(messages);
-        return Promise.All(data.forEach(async p => {
+        const cloneMessages = Array.from(messages);
+        for (const message of cloneMessages) {
             try {
-                await axios.get(`https://api.telegram.org/${API_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${p}`);
+                await axios.get(`https://api.telegram.org/${API_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${message}`);
             } catch (ex) {
                 console.error(`fail to delete on messenger Status: ${err.response.status}`, err.response.data);
             }
-        }));
+        }
     }
-    return Promise.resolve();
 }
 
 
@@ -44,7 +43,6 @@ const writeMessagesToTelegram = async (chatId, messagesArray) => {
 const cleanUpOldChat = async (chatId, start, end) => {
     return deleteMessages(chatId, [...Array((end - start)).keys()].map(i => i + start));
 }
-
 
 module.exports =
 {
