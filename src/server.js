@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 const { flatten } = require("lodash");
 const { deleteMessages, writeMessagesToTelegram, cleanUpOldChat } = require("./telegram-api");
 const { PuneDistrictId, DelhiStateId, NcrAdditionalDistricts, DistrictNamesMap } = require("./constants");
@@ -58,7 +58,7 @@ async function getWeeklyCalendarDelhiNcr() {
     // cleanUpOldChat(DelhiChatId, 1340, 1500).then(() => { console.log('clean up Done'); }).catch(() => { console.log('clean up failed'); });
     try {
         await initDistrictsOfDelhi();
-        console.log('calling for Delhi NCR');
+        console.log('calling for Delhi NCR', new Date().toLocaleString());
         var hasVaccineSlots = false;
 
         for (const district of DelhiNcrDistrictList) {
@@ -95,7 +95,7 @@ async function getWeeklyCalendarDelhiNcr() {
 }
 async function getWeeklyCalendarPune() {
     try {
-        console.log('calling for Pune');
+        console.log('calling for Pune', new Date().toLocaleString());
         const allValidHospitals = await getWeeklyCalByIdAndDate(PuneDistrictId, dateToQuery);
         if (allValidHospitals !== undefined && allValidHospitals.length > 0) {
             console.log(JSON.stringify({ pune_hospitals: allValidHospitals }));
@@ -139,7 +139,7 @@ let dataTimerId = setTimeout(function schedule() {
         finally(
             () => {
                 if (!closingApp) {
-                    dataTimerId = setTimeout(schedule, 1 * 60 * 1000);
+                    dataTimerId = setTimeout(schedule, .75 * 60 * 1000);
                 }
             }
         );

@@ -1,3 +1,4 @@
+"use strict";
 const NewlineChar = "\n";
 const VaccineAvailabilityThreshHold = 5;
 const PuneDistrictId = 363;

@@ -1,13 +1,13 @@
-"use-strict";
+"use strict";
 const axios = require('axios');
 const { filter } = require("lodash");
 const { VaccineAvailabilityThreshHold, DistrictNamesMap } = require("./constants");
 
 
-const getWeeklyCalByIdAndDate = async (id, date, ageFilter) => {
+const getWeeklyCalByIdAndDate = async (districtId, date, ageFilter) => {
     try {
         const respose = await axios.get(
-            `https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=${id}&date=${date}`,
+            `https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=${districtId}&date=${date}`,
             {
                 headers: {
                     accept: "application/json",
@@ -42,7 +42,7 @@ const getWeeklyCalByIdAndDate = async (id, date, ageFilter) => {
 
                 validHospitalDetails.push({
                     statusTime: new Date().toLocaleString(),
-                    district: DistrictNamesMap.get(id) || "",
+                    district: DistrictNamesMap.get(districtId) || "",
                     name,
                     address,
                     fee,
@@ -72,8 +72,8 @@ const getWeeklyCalByIdAndDate = async (id, date, ageFilter) => {
 
         return validHospitalDetails;
     } catch (err) {
-        console.error(`Error while getting Weekly Calendar By Id Status: ${err.response?.status}`,
-            err.response.data
+        console.error(`Error while getting Weekly Calendar of District ${DistrictNamesMap.get(districtId) || districtId} Status: ${err.response?.status}`,
+            err.response?.data
         );
 
     }
@@ -96,7 +96,7 @@ const getDistricts = async (id) => {
     } catch (err) {
         console.error(
             `Error while getting District List of a state ${id} Status: ${err.response?.status}`,
-            err.response.data
+            err.response?.data
         );
     }
 };

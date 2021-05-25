@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 const { startCase } = require("lodash");
 const { NewlineChar } = require("./constants");
 

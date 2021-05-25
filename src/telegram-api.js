@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 const axios = require("axios");
 const { buildFormattedString } = require("./helpers");
 const TelegramData = require("../data/telegram.json");
@@ -12,7 +12,7 @@ const deleteMessages = async (chatId, messages) => {
             try {
                 await axios.get(`https://api.telegram.org/${API_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${message}`);
             } catch (ex) {
-                console.error(`fail to delete on messenger Status: ${err.response.status}`, err.response.data);
+                console.error(`fail to delete on messenger Status: ${err.response?.status}`, err.response?.data);
             }
         }
     }
@@ -27,7 +27,7 @@ const writeToTelegramStringArray = async (chatId, messagesStringArr) => {
                 return result.data.result.message_id;
             }
             catch (err) {
-                console.error(`fail to write on messenger Status: ${err.response.status}`, err.response.data);
+                console.error(`fail to write on messenger Status: ${err.response?.status}`, err.response?.data);
             }
         }
         return undefined;
