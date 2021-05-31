@@ -4,7 +4,7 @@ const { filter } = require("lodash");
 const { VaccineAvailabilityThreshHold, DistrictNamesMap } = require("./constants");
 
 
-const getWeeklyCalByIdAndDate = async (districtId, date, ageFilter) => {
+const getWeeklyCalByIdAndDate = async (districtId, date, ageFilter , onlyFree) => {
     try {
         const respose = await axios.get(
             `https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=${districtId}&date=${date}`,
@@ -19,10 +19,17 @@ const getWeeklyCalByIdAndDate = async (districtId, date, ageFilter) => {
         const validHospitalDetails = [];
         respose.data.centers.forEach((p) => {
             const validSessions = filter(p.sessions, (ses) => {
-                return ageFilter !== undefined
+
+                 let isValid = ageFilter !== undefined
                     ? ses.available_capacity_dose1 > VaccineAvailabilityThreshHold &&
                     ses.min_age_limit === ageFilter
                     : ses.available_capacity_dose1 > VaccineAvailabilityThreshHold;
+
+                if ( onlyFree === true)
+                {
+                    isValid = p.fee_type ==='Free';
+                }
+                return isValid
             });
 
             if (
